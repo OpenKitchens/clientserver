@@ -18,13 +18,14 @@
 
 ## **ClientServer**
 
-`{type: createAccount}` 　　　　　　　　　　　　　　　　　　　　　　　　　　　 createAccountを要求
+`{type: createAccount}` 　　　　　　　　　　　　　　　　　　　　　　　　　　　 createAccount
 
-`{type: login}` 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　  loginを要求
+`{type: login}` 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　  login
 
 `{type: settings}` 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　設定の変更を要求
 
-`{type: addFriend}` 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　  フレンドの追加を要求
+
+`{type: addFriend}` 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　  フレンドの追加を要求(この時フレンド追加のuuidを送信)
 
 **→Friend(Client鯖)へ**  `{type: friendRequest}` 　　　　　　　　　　　　　　　　フレンド申請
 
@@ -56,7 +57,9 @@
 
 **→スレ主(Client鯖)へ**  `{type: getThreadRequest}` 　　　　　　　　　　　　　　　スレッドにアクセス
 
-`{type: friendRequest}`  →  `{type: friendRequestSuccess}` 　　　　　　　　　　　 フレンド申請成功を返信
+`{type: friendRequest}`  →  `{type: friendRequestReply}` 　　　　　　　　　　　 フレンド申請者に自分の情報を送信
+
+`{type: friendRequestReply}`                                                   申請対象の情報を取得しデータベースに保存
 
 `{type: joinRequestToServer}`  → `{type: joinRequestToServerSuccess}` 　　　　　 サーバー参加成功を返信
 
@@ -71,3 +74,19 @@
 **→全てのサーバー参加者へ** `{type: NotificationNow}`    　　　　　　　　　　　　   スレッドが立った通知を参加者へ送信
 
 `{type: getThreadRequest}`  →  `{type: getThreadRequestSuccess}`   　　　　　　　   スレッドアクセスの成功送信
+
+
+#### CreateAccount関数の詳細
+`data = {username: "examle", password: "exapmle_password", mySocket: "ws://example.com"}`
+
+#### login関数の詳細
+`data = {username: "examle", password: "exapmle_password"}`
+
+#### settings関数の詳細
+`data = {myIconImage: "examle.jpg", myHeaderImage: "exapmle_header.jpg", myBio: "example_myBio", temporaryId: "3e-091ae-23"}`
+
+#### addFriend関数の詳細
+`data = {socket: "ws://example.com"}`
+
+#### friendRequestReplyの詳細
+`data = {image: database.getItem("myIconImage"),title: database.getItem("username"),socket: database.getItem("mySocket")}`
