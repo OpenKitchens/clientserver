@@ -86,7 +86,7 @@
 `data = {myIconImage: "examle.jpg", myHeaderImage: "exapmle_header.jpg", myBio: "example_myBio", temporaryId: "3e-091ae-23"}`
 
 #### addFriend関数の詳細
-`data = {socket: "ws://example.com"}`
+`data = {socket: "ws://example.com", temporaryId: "3e-091ae-23"}`
 
 #### friendRequestReplyの詳細
 `data = {image: database.getItem("myIconImage"),title: database.getItem("username"),socket: database.getItem("mySocket")}`
