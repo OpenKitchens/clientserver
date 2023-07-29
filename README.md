@@ -41,8 +41,6 @@
 
 `{type: openServer}` 
 
-**→Serverへ**   `{type: openServerRequest}` 　　　　　　　　　　　　　　　　　　  サーバーを開くことを要求
-
 `{type: renderingData}` 
 
 **→返信** `{type: renderToData}` 　　　　　　　　　　　　　　　　　　　　　　　  レンダリングするに必要なデータを要求
