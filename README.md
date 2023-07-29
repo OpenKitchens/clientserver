@@ -33,9 +33,11 @@
 
 **→Serverへ**    `{type: joinRequestToServer}` 　　　　　　　　　　　　　　　　　サーバー参加申請
 
-`{type: openDM}` 
+`{type: openDM}` 　                                 　　　　　　　　　　 　DMを開くことを要求
 
-**→Friend(Client鯖)へ**  `{type: openDMRequest}` 　　　　　　　　　　　　　　　 　DMを開くことを要求
+`{type: sendToFriendDM}`                                              フレンドへダイレクトメッセージを送信
+
+**→Friend(Client鯖)へ**  `{type: sendToDM}` 　　　　　　　　　　　　　　　 　フレンドへダイレクトメッセージを送信
 
 `{type: openServer}` 
 
@@ -90,3 +92,6 @@
 
 #### friendRequestReplyの詳細
 `data = {image: database.getItem("myIconImage"),title: database.getItem("username"),socket: database.getItem("mySocket")}`
+
+### joinRequestToServerの詳細
+`{image: database.getItem("serverIconImage"),title: database.getItem("servername"),socket: database.getItem("serverSocket")}`

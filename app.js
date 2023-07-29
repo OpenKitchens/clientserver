@@ -35,7 +35,9 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
     else if (data.type.settings) settings(data)//
     else if (data.type.addFriend) addFriend(data, oneSocketReceived) //ここまで
     else if (data.type.addServer) addServer(data, oneSocketReceived)//
-    else if (data.type.openDM) openDM(data, oneSocketReceived)
+    else if (data.type.openDM) openDM(data, oneSocketReceived)//
+    else if (data.type.sendToFriendDM) sendToFriendDM(data)//
+    else if (data.type.sendToDM) sendToDM(data, oneSocketReceived)//
     else if (data.type.openServer) openServer(data, oneSocketReceived)
     else if (data.type.renderingData) renderingData(data, oneSocketReceived)
     else if (data.type.timeLineData) timeLineData(data, oneSocketReceived)
@@ -45,7 +47,6 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
     else if (data.type.friendRequestReply) friendRequestReply(data)//
     else if (data.type.joinRequestToServer) joinRequestToServer(data, oneSocketReceived)//
     else if (data.type.joinRequestToServerReply) joinRequestToServerReply(data, oneSocketReceived)//
-    else if (data.type.openDMbyFreind) openDMbyFreind(data, oneSocketReceived)
     else if (data.type.openServerRequest) openServerRequest(data, oneSocketReceived)
     else if (data.type.timeLineRequestToFriend) timeLineRequestToFriend(data, oneSocketReceived)
     else if (data.type.threadPostRequest) threadPostRequest(data, oneSocketReceived)
@@ -115,8 +116,8 @@ function addFriend(data) {
 
 //フレンド申請者に自分の情報を送信
 function friendRequest(data, received) {
-  database.addToList("friendList", { image: data.image, title: data.title, socket: data.socket })
-  database.addToList("friendListSocket", data.socket);
+  database.addToList("friendList", { image: data.image, title: data.title, socket: data.socket })//画面レンタリング用
+  database.addItem(data.socket+"Information", { image: data.image, title: data.title, socket: data.socket })//接続用
   received.send(
     JSON.stringify({
       type: { friendRequestReply: true },
@@ -129,8 +130,8 @@ function friendRequest(data, received) {
 
 //フレンド申請先の情報を取得
 function friendRequestReply(data) {
-  database.addToList("friendList", { image: data.image, title: data.title, socket: data.socket })
-  database.addToList("friendListSocket", data.socket);
+  database.addToList("friendList", { image: data.image, title: data.title, socket: data.socket })//画面レンタリング用
+  database.addItem(data.socket+"Information", { image: data.image, title: data.title, socket: data.socket })//接続用
 }
 
 //サーバーの追加を要求
@@ -167,4 +168,33 @@ function joinRequestToServer(data, received) {
 function joinRequestToServerReply(data) {
   database.addToList("ServerList", { image: data.image, title: data.title, socket: data.socket })
   database.addToList("ServerListSocket", data.socket);
+}
+
+//DMを開く
+function openDM(data, received) {
+  received.send(JSON.stringify(database.getItem(data.socket+"MessageList")))
+}
+
+//ダイレクトメッセージを送信
+function sendToFriendDM(data) {
+  //一人へのソケット接続
+  const connectToOneSocketForFriendRequest = connectToOneSocket(data.socket)
+
+  connectToOneSocketForFriendRequest.on("connection", (connectToOneSocketForFriendRequested) => {
+    connectToOneSocketForFriendRequested.send(
+      JSON.stringify({
+        type: { sendToDM: true },
+        title: data.title,
+        message: data.message,
+        socket: database.getItem("mySocket")
+      })
+    )
+  })
+
+  database.addToList(data.socket+"MessageList", {title: data.title, message: data.message})
+}
+
+//受信して、保存する
+function sendToFriendDM(data) {
+  database.addToList(data.socket+"MessageList", {title: data.title, message: data.message})
 }
