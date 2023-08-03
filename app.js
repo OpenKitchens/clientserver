@@ -41,7 +41,8 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
 
   oneSocketReceived.on("message", (getData) => {
     const data = JSON.parse(getData)
-    if (data.type.createAccount) createAccount(data)//
+    if (data.type.connectTest) oneSocketReceived.send("success")//
+    else if (data.type.createAccount) createAccount(data)//
     else if (data.type.login) login(data, oneSocketReceived)//
     else if (data.type.settings) settings(data)//
     else if (data.type.addFriend) addFriend(data, oneSocketReceived) //ここまで
