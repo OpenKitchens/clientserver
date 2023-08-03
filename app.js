@@ -76,15 +76,17 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
 
 //アカウントの作成(username,hash,SocketのIDを記録)
 function createAccount() {
-  database.addItem("username", data.username)
-  database.addItem("hash", crypto.createHash("sha256").update(data.username + data.password).digest("hex"))
-  database.addItem("mySocket", data.socket)
-  database.addItem("serverIconImage", data.serverIconImage)
-  database.addItem("servername", data.servername)
-  database.addItem("serverSocket", data.socket)
-  database.addItem("myIconImage", data.myIconImage)
-  database.addItem("myHeaderImage", data.myHeaderImage)
-  database.addItem("myBio", data.myBio)
+  if (!database.getItem("username")) {
+    database.addItem("username", data.username)
+    database.addItem("hash", crypto.createHash("sha256").update(data.username + data.password).digest("hex"))
+    database.addItem("mySocket", data.socket)
+    database.addItem("serverIconImage", data.serverIconImage)
+    database.addItem("servername", data.servername)
+    database.addItem("serverSocket", data.socket)
+    database.addItem("myIconImage", data.myIconImage)
+    database.addItem("myHeaderImage", data.myHeaderImage)
+    database.addItem("myBio", data.myBio)
+  }
 }
 
 //ログイン(セッションIDを返す)
@@ -292,7 +294,7 @@ function getThread(data) {
 }
 
 //スレアクセスの要請を取得
-function getThreadRequest(data, received){
+function getThreadRequest(data, received) {
   received.send(
     JSON.stringify({
       type: { getThreadRequestReply: true },
@@ -302,7 +304,7 @@ function getThreadRequest(data, received){
 }
 
 //スレの中身を取得
-function getThreadRequestReply(data){
+function getThreadRequestReply(data) {
   threadData = data
 }
 
@@ -323,7 +325,7 @@ function ThreadToSendMessage(data) {
 }
 
 //Threadに送信されたデータをばら撒く
-function ThreadToSendMessageRequest(data){
+function ThreadToSendMessageRequest(data) {
   const connectToOneSocketForThreadToMessage = connectToOneSocket(data.serverSocket)
   //uuidでスレッドのメッセージを取得
   const MessageData = database.getItem(data.uuid).threadMessage.push(data)
@@ -340,7 +342,7 @@ function ThreadToSendMessageRequest(data){
   })
 }
 
-function NewMessage(data){
+function NewMessage(data) {
   // 接続するURLのリスト
   const urls = database.getItem("serverJoinList");
 
