@@ -76,7 +76,7 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
 });
 
 //アカウントの作成(username,hash,SocketのIDを記録)
-function createAccount() {
+function createAccount(data) {
   if (!database.getItem("username")) {
     database.addItem("username", data.username)
     database.addItem("hash", crypto.createHash("sha256").update(data.username + data.password).digest("hex"))
