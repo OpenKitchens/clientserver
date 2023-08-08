@@ -41,8 +41,11 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
 
   oneSocketReceived.on("message", (getData) => {
     const data = JSON.parse(getData)
-    if (data.type.connectTest) oneSocketReceived.send("success")//
-    else if (data.type.createAccount) createAccount(data)//
+    if (data.type.connectTest) {
+      oneSocketReceived.send("success")
+      console.log("success")
+    }//
+    else if (data.type.createAccount) createAccount(data, oneSocketReceived)//
     else if (data.type.login) login(data, oneSocketReceived)//
     else if (data.type.settings) settings(data)//
     else if (data.type.addFriend) addFriend(data, oneSocketReceived) //ここまで
@@ -68,6 +71,7 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
     else if (data.type.ThreadToSendMessageRequest) getThreadRequest(data, ThreadToSendMessageRequest)//
     else if (data.type.NewMessage) getThreadRequest(data, NewMessage)//
     else if (data.type.haveNewMessage) getThreadRequest(data, haveNewMessage)//
+    else if (data.type.renderingEngine) renderingEngine(oneSocketReceived)//
   });
 
   oneSocketReceived.on("close", () => {
@@ -76,26 +80,33 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
 });
 
 //アカウントの作成(username,hash,SocketのIDを記録)
-function createAccount(data) {
+function createAccount(data, received) {
   if (!database.getItem("username")) {
     database.addItem("username", data.username)
     database.addItem("hash", crypto.createHash("sha256").update(data.username + data.password).digest("hex"))
     database.addItem("mySocket", data.socket)
     database.addItem("serverIconImage", data.serverIconImage)
+    database.addItem("serverEmoji", data.emoji)
+    database.addItem("serverInformation", data.serverInformation)
     database.addItem("servername", data.servername)
     database.addItem("serverSocket", data.socket)
     database.addItem("myIconImage", data.myIconImage)
     database.addItem("myHeaderImage", data.myHeaderImage)
     database.addItem("myBio", data.myBio)
+    temporaryId = uuidv4()
+    database.addItem("token", temporaryId)
+    received.send(temporaryId)
   }
 }
 
 //ログイン(セッションIDを返す)
 function login(data, received) {
   const referenceHash = database.getItem("hash")
-  const checkHash = crypto.createHash("sha256").update(data.username + data.message).digest("hex")
+  const checkHash = crypto.createHash("sha256").update(data.username + data.password).digest("hex")
   if (referenceHash == checkHash) {
+    temporaryId = uuidv4()
     received.send(temporaryId)
+    database.addItem("token", temporaryId)
   }
 }
 
@@ -106,8 +117,9 @@ function settings(data) {
     database.addItem("hash", crypto.createHash("sha256").update(data.username + data.password).digest("hex"))
     database.addItem("mySocket", data.socket)
     database.addItem("serverIconImage", data.serverIconImage)
+    database.addItem("serverEmoji", data.emoji)
     database.addItem("servername", data.servername)
-    database.addItem("serverInformation", data.ServerInformation)
+    database.addItem("serverInformation", data.serverInformation)
     database.addItem("serverSocket", data.socket)
     database.addItem("myIconImage", data.myIconImage)
     database.addItem("myHeaderImage", data.myHeaderImage)
@@ -156,18 +168,29 @@ function friendRequestReply(data) {
 
 //サーバーの追加を要求
 function addServer(data) {
-  if (data.temporaryId == temporaryId) {
+  console.log("addServerリクエスト(確認前)")
+  if (data.temporaryId == database.getItem("token")) {
+
+    console.log("addServerリクエスト")
     //一人へのソケット接続
     const connectToOneSocketForServerRequest = connectToOneSocket(data.socket)
 
-    connectToOneSocketForServerRequest.on("connection", (connectToOneSocketForServerRequested) => {
-      connectToOneSocketForServerRequested.send(
+    connectToOneSocketForServerRequest.on('open', () => { // 'open' イベントを使用
+      console.log("WebSocket接続が開かれました");
+
+      connectToOneSocketForServerRequest.send(
         JSON.stringify({
           type: { joinRequestToServer: true },
           socket: database.getItem("mySocket")
         })
       )
-    })
+    });
+
+    connectToOneSocketForServerRequest.on('message', (getData) => { // 'message' イベントを使用
+      console.log("サーバーから基本情報が送られました")
+      const data = JSON.parse(getData)
+      database.addToList("ServerList", { image: data.image, title: data.title, serverInformation: data.serverInformation, socket: data.socket, emoji: data.emoji })
+    });
   }
 }
 
@@ -179,15 +202,10 @@ function joinRequestToServer(data, received) {
       type: { joinRequestToServerReply: true },
       image: database.getItem("serverIconImage"),
       title: database.getItem("servername"),
-      serverInformation: database.getItem("serverInformation"),
+      emoji: database.getItem("serverEmoji"),
       socket: database.getItem("serverSocket")
     })
   )
-}
-
-//フレンド申請先の情報を取得
-function joinRequestToServerReply(data) {
-  database.addToList("ServerList", { image: data.image, title: data.title, serverInformation: data.serverInformation, socket: data.socket })
 }
 
 //DMを開く
@@ -359,3 +377,38 @@ function haveNewMessage(data) {
   getThread(data)
 }
 //threadDataに変更があった時レンタリングデータをclientに送信
+
+function renderingEngine(received){
+  console.log(JSON.stringify({
+      myName: database.getItem("username"),
+      myHash: database.getItem("hash"),
+      myIcon: database.getItem("myIconImage"),
+      myHeader: database.getItem("myHeaderImage"),
+      myBio: database.getItem("myBio"),
+      friends: database.getItem("friendList") ?? [{ title: "フレンドがいません(悲しい)", image: "https://tadaup.jp/0612551642.png" }],
+      servers: database.getItem("ServerList") ?? [{ title: "サーバーに所属していません。", emoji: "", badge: "" }]
+    }))
+  received.send(
+    JSON.stringify({
+      myName: database.getItem("username"),
+      myHash: database.getItem("hash"),
+      myIcon: database.getItem("myIconImage"),
+      myHeader: database.getItem("myHeaderImage"),
+      myBio: database.getItem("myBio"),
+      friends: database.getItem("friendList") ?? [{ title: "フレンドがいません(悲しい)", image: "https://tadaup.jp/0612551642.png" }],
+      servers: database.getItem("ServerList") ?? [{ title: "サーバーに所属していません。", emoji: "", badge: "" }]
+    })
+  )
+}
+
+/*
+myName: myName,
+myHash: myID,
+myIcon: myIcon,
+myHeader: myHeader,
+myBio: myBio,
+friends: friends,
+servers: servers,
+
+timeLine
+*/
