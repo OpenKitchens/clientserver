@@ -12,6 +12,12 @@ const connectToMultipleSockets = (urls) => {
 
   urls.forEach((url) => {
     const webSocketObject = new WebSocket(url);
+
+    // WebSocket のイベントハンドラを追加して接続状態を監視
+    webSocketObject.addEventListener('open', () => {
+      console.log(`WebSocket connected to ${url}`);
+    });
+
     webSocketObjects.push(webSocketObject);
   });
 
@@ -24,7 +30,7 @@ const sendMessageToAllSockets = (sockets, message) => {
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(message);
     } else {
-      console.error('WebSocket is not open.');
+      console.error(`WebSocket to ${socket.url} is not open.`);
     }
   });
 }
@@ -40,7 +46,10 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
   temporaryId = uuidv4();
 
   oneSocketReceived.on("message", (getData) => {
+    
     const data = JSON.parse(getData)
+    console.log(data)
+    
     if (data.type.connectTest) {
       oneSocketReceived.send("success")
       console.log("success")
@@ -56,7 +65,7 @@ oneSocketReceive.on("connection", (oneSocketReceived) => {
     else if (data.type.openServer) openServer(data, oneSocketReceived)//
     else if (data.type.renderingData) renderingData(data, oneSocketReceived)
     else if (data.type.timeLineData) timeLineData(data, oneSocketReceived)
-    else if (data.type.threadPost) threadPost(data, oneSocketReceived)//
+    else if (data.type.threadPost) threadPost(data)//
     else if (data.type.notificationNow) notificationNow(data, oneSocketReceived)//
     else if (data.type.getThread) getThread(data, oneSocketReceived)//
     else if (data.type.friendRequest) friendRequest(data, oneSocketReceived)//
@@ -189,7 +198,9 @@ function addServer(data) {
     connectToOneSocketForServerRequest.on('message', (getData) => { // 'message' イベントを使用
       console.log("サーバーから基本情報が送られました")
       const data = JSON.parse(getData)
-      database.addToList("ServerList", { image: data.image, title: data.title, serverInformation: data.serverInformation, socket: data.socket, emoji: data.emoji })
+      if(data.type.joinRequestToServerReply){
+        database.addToList("ServerList", { image: data.image, title: data.title, serverInformation: data.serverInformation, socket: data.socket, emoji: data.emoji })
+      }
     });
   }
 }
@@ -239,37 +250,47 @@ function sendToFriendDM(data) {
 
 //サーバーにアクセス
 function openServer(data, received) {
-  received.send(JSON.stringify(database.getItem(data.socket + "ThreadList")))
+  received.send(JSON.stringify(
+    {
+      threads: database.getItem("ThreadList"),
+      image: database.getItem("serverIconImage"),
+      title: database.getItem("servername"),
+      emoji: database.getItem("serverEmoji"),
+      serverInformation: database.getItem("serverInformation"),
+    }
+  ))
 }
 
 //ダイレクトメッセージを送信
 function threadPost(data) {
-
+  console.log("threadPost")
   const uuid = uuidv4()
   //一人へのソケット接続
+
   const connectToOneSocketForServerForThread = connectToOneSocket(data.socket)
 
-  connectToOneSocketForServerForThread.on("connection", (connectToOneSocketForServerForThreaded) => {
-    connectToOneSocketForServerForThreaded.send(
+  connectToOneSocketForServerForThread.on('open', () => { // 'open' イベントを使用
+    console.log("WebSocket接続が開かれました");
+
+    connectToOneSocketForServerForThread.send(
       JSON.stringify({
         type: { threadPostRequest: true },
         title: data.title,
-        headerImagemage: data.headerImagemage,
+        headerImage: data.headerImage,
         message: data.message,
-        serverName: data.serverName,
         uuid: uuid,
         myName: database.getItem("username"),
         socket: database.getItem("mySocket")
       })
     )
-  })
+    console.log("サーバーへ送信")
+  });
 
   database.addItem(uuid, {
     threadInfo: {
       title: data.title,
-      headerImagemage: data.headerImagemage,
+      headerImage: data.headerImage,
       message: data.message,
-      serverName: data.serverName,
       uuid: uuid,
       myName: database.getItem("username"),
       socket: database.getItem("mySocket")
@@ -280,36 +301,61 @@ function threadPost(data) {
 
 //スレ立てを参加者に通知
 function threadPostRequest(data) {
-  // 接続するURLのリスト
   const urls = database.getItem("serverJoinList");
 
-  // 複数のWebSocketオブジェクトを取得
   const sockets = connectToMultipleSockets(urls);
 
-  // すべてのWebSocketオブジェクトにメッセージを送信
-  const messageToSend = data;
-  sendMessageToAllSockets(sockets, JSON.stringify(
-    { type: { notificationNow: true }, data: data }
-  ));
+  const message = JSON.stringify({
+    type: { notificationNow: true },
+    data: {
+      title: data.title,
+      headerImage: data.headerImage,
+      message: data.message,
+      uuid: data.uuid,
+      myName: data.myName,
+      socket: data.socket,
+      serverSocket: database.getItem("mySocket")
+    }
+  });
+
+  // WebSocket の接続が完了するまで待機
+  Promise.all(sockets.map(socket => new Promise(resolve => {
+    if (socket.readyState === WebSocket.OPEN) {
+      resolve();
+    } else {
+      socket.addEventListener('open', resolve);
+    }
+  })))
+  .then(() => {
+    sendMessageToAllSockets(sockets, message);
+    database.addToList("ThreadList", data);
+  });
 }
 
 //スレ立ての通知を取得
 function notificationNow(data) {
-  database.addToList(data.data.serverName, data.data)
+  database.addToList(data.data.serverSocket, data.data)
 }
 
 //スレにアクセス
-function getThread(data) {
-  const connectToOneSocketForFriendRequest = connectToOneSocket(data.socket)
+function getThread(data, received) {
+  //ブラウザからスレッドを立てたユーザーのsocketとuuidを送信
+  const connectToOneSocketForGetThreadRequest = connectToOneSocket(data.socket)
 
-  connectToOneSocketForFriendRequest.on("connection", (connectToOneSocketForFriendRequested) => {
-    connectToOneSocketForFriendRequested.send(
+  connectToOneSocketForGetThreadRequest.on("open", () => {
+    connectToOneSocketForGetThreadRequest.send(
       JSON.stringify({
         type: { getThreadRequest: true },
         accessPoint: data.uuid
       })
     )
   })
+
+  connectToOneSocketForGetThreadRequest.on('message', (getData) => {
+    if(data.type.getThreadRequestReply){
+      received.send(getData)
+    }
+  });
 }
 
 //スレアクセスの要請を取得
@@ -320,11 +366,6 @@ function getThreadRequest(data, received) {
       data: database.getItem(data.accessPoint).threadMessage
     })
   )
-}
-
-//スレの中身を取得
-function getThreadRequestReply(data) {
-  threadData = data
 }
 
 //スレッドに送信
@@ -379,7 +420,7 @@ function haveNewMessage(data) {
 //threadDataに変更があった時レンタリングデータをclientに送信
 
 function renderingEngine(received){
-  console.log(JSON.stringify({
+  /*console.log(JSON.stringify({
       myName: database.getItem("username"),
       myHash: database.getItem("hash"),
       myIcon: database.getItem("myIconImage"),
@@ -387,7 +428,7 @@ function renderingEngine(received){
       myBio: database.getItem("myBio"),
       friends: database.getItem("friendList") ?? [{ title: "フレンドがいません(悲しい)", image: "https://tadaup.jp/0612551642.png" }],
       servers: database.getItem("ServerList") ?? [{ title: "サーバーに所属していません。", emoji: "", badge: "" }]
-    }))
+    }))*/
   received.send(
     JSON.stringify({
       myName: database.getItem("username"),
