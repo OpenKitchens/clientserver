@@ -444,9 +444,13 @@ function getTimeLine() {
   const threads = [];
 
   const ServerList = database.getItem("ServerList");
-  ServerList.forEach(server => {
-    threads.push(database.getItem(server.socket));
-  });
+  if(ServerList){
+    ServerList.forEach(server => {
+      threads.push(database.getItem(server.socket));
+    });
 
-  return threads;
+    return threads;
+  }else{
+    return null;
+  }
 }

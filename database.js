@@ -47,7 +47,7 @@ function addToList(key, value) {
   if (!Array.isArray(database[key])) {
     database[key] = [];
   }
-  database[key].push(value);
+  database[key].unshift(value);
   writeDatabase(database);
 }
 
