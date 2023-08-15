@@ -256,7 +256,7 @@ function openServer(data, received) {
       image: database.getItem("serverIconImage"),
       title: database.getItem("servername"),
       emoji: database.getItem("serverEmoji"),
-      serverInformation: database.getItem("serverInformation"),
+      serverInformation: database.getItem("serverInformation")
     }
   ))
 }
@@ -280,6 +280,7 @@ function threadPost(data) {
         message: data.message,
         uuid: uuid,
         myName: database.getItem("username"),
+        myIcon: database.getItem("myIconImage"),
         socket: database.getItem("mySocket")
       })
     )
@@ -293,6 +294,7 @@ function threadPost(data) {
       message: data.message,
       uuid: uuid,
       myName: database.getItem("username"),
+      myIcon: database.getItem("myIconImage"),
       socket: database.getItem("mySocket")
     },
     threadMessage: []
@@ -312,9 +314,12 @@ function threadPostRequest(data) {
       headerImage: data.headerImage,
       message: data.message,
       uuid: data.uuid,
+      myIcon: data.myIcon,
       myName: data.myName,
       socket: data.socket,
-      serverSocket: database.getItem("mySocket")
+      serverSocket: database.getItem("mySocket"),
+      serverName: database.getItem("servername"),
+      serverEmoji: database.getItem("serverEmoji")
     }
   });
 
@@ -420,15 +425,7 @@ function haveNewMessage(data) {
 //threadDataに変更があった時レンタリングデータをclientに送信
 
 function renderingEngine(received){
-  /*console.log(JSON.stringify({
-      myName: database.getItem("username"),
-      myHash: database.getItem("hash"),
-      myIcon: database.getItem("myIconImage"),
-      myHeader: database.getItem("myHeaderImage"),
-      myBio: database.getItem("myBio"),
-      friends: database.getItem("friendList") ?? [{ title: "フレンドがいません(悲しい)", image: "https://tadaup.jp/0612551642.png" }],
-      servers: database.getItem("ServerList") ?? [{ title: "サーバーに所属していません。", emoji: "", badge: "" }]
-    }))*/
+  console.log(getTimeLine())
   received.send(
     JSON.stringify({
       myName: database.getItem("username"),
@@ -437,19 +434,19 @@ function renderingEngine(received){
       myHeader: database.getItem("myHeaderImage"),
       myBio: database.getItem("myBio"),
       friends: database.getItem("friendList") ?? [{ title: "フレンドがいません(悲しい)", image: "https://tadaup.jp/0612551642.png" }],
-      servers: database.getItem("ServerList") ?? [{ title: "サーバーに所属していません。", emoji: "", badge: "" }]
+      servers: database.getItem("ServerList") ?? [{ title: "サーバーに所属していません。", emoji: "", badge: "" }],
+      timeLine: getTimeLine()
     })
   )
 }
 
-/*
-myName: myName,
-myHash: myID,
-myIcon: myIcon,
-myHeader: myHeader,
-myBio: myBio,
-friends: friends,
-servers: servers,
+function getTimeLine() {
+  const threads = [];
 
-timeLine
-*/
+  const ServerList = database.getItem("ServerList");
+  ServerList.forEach(server => {
+    threads.push(database.getItem(server.socket));
+  });
+
+  return threads;
+}
