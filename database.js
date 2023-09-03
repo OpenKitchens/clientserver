@@ -51,9 +51,19 @@ function addToList(key, value) {
   writeDatabase(database);
 }
 
+function addItemToList(item, key, value) {
+  const database = readDatabase();
+  if (!Array.isArray(database[item][key])) {
+    database[item][key] = [];
+  }
+  database[item][key].unshift(value);
+  writeDatabase(database);
+}
+
 module.exports = {
   addItem,
   getItem,
   deleteItem,
   addToList,
+  addItemToList
 };
