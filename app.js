@@ -9,7 +9,8 @@ const port = 3000;
 const { v4: uuidv4 } = require("uuid")
 
 app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "http://localhost:5173"); // 特定のオリジンからのリクエストを許可
+  res.header("Access-Control-Allow-Origin", "*");
+// 特定のオリジンからのリクエストを許可
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS"); // 許可するHTTPメソッドを指定
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   next();
@@ -29,9 +30,13 @@ app.post('/', (req, res) => {
 
   else if (data.type.openServer) openServer(res)
   
-  else if (data.type.threadPost) threadPost(data)
+  else if (data.type.threadPost) threadPost(data, res)
   else if (data.type.threadPostRequest) threadPostRequest(data)
   else if (data.type.notificationNow) notificationNow(data)
+
+  else if (data.type.getThread) getThread(data, res)
+  else if (data.type.postMessage) postMessage(data, res)
+  else if (data.type.getMessage) getMessage(data, res)
 });
 
 app.listen(port, () => {
@@ -179,10 +184,12 @@ function openServer(received) {
 }
 
 //ダイレクトメッセージを送信
-function threadPost(data) {
+function threadPost(data, received) {
   console.log("threadPost")
   console.log(data)
   const uuid = uuidv4()
+
+  received.json({ data: uuid })
 
   database.addItem(uuid, {
     threadInfo: {
@@ -250,242 +257,19 @@ function notificationNow(data) {
   database.addToList(data.data.serverSocket, data.data)
 }
 
-
-
-
-
-
-
-
-
-/*
-//スレにアクセス
-function getThread(data, received) {
-  //ブラウザからスレッドを立てたユーザーのsocketとuuidを送信
-  const connectToOneSocketForGetThreadRequest = connectToOneSocket(data.socket)
-
-  connectToOneSocketForGetThreadRequest.on("open", () => {
-    connectToOneSocketForGetThreadRequest.send(
-      JSON.stringify({
-        type: { getThreadRequest: true },
-        accessPoint: data.uuid
-      })
-    )
-  })
-
-  connectToOneSocketForGetThreadRequest.on('message', (getData) => {
-    if(data.type.getThreadRequestReply){
-      received.send(getData)
-    }
-  });
+function getThread (data, received){
+  console.log("getThread")
+  const username = database.getItem("username")
+  const myIconImage = database.getItem("myIconImage")
+  received.json({ data: database.getItem(data.uuid), username: username, myIconImage: myIconImage })
 }
 
-//スレアクセスの要請を取得
-function getThreadRequest(data, received) {
-  received.send(
-    JSON.stringify({
-      type: { getThreadRequestReply: true },
-      data: database.getItem(data.accessPoint).threadMessage
-    })
-  )
+function postMessage (data, received){
+  console.log(data.uuid)
+  database.addItemToList(data.uuid, "threadMessage", JSON.stringify({ message: data.message, icon: data.icon, name: data.name }));
+  received.json({ data: database.getItem(data.uuid).threadMessage })
 }
 
-//スレッドに送信
-function ThreadToSendMessage(data) {
-  const connectToOneSocketForThreadToMessage = connectToOneSocket(data.socket)
-
-  connectToOneSocketForThreadToMessage.on("connection", (connectToOneSocketForThreadToMessaged) => {
-    connectToOneSocketForThreadToMessaged.send(
-      JSON.stringify({
-        type: { ThreadToSendMessageRequest: true },
-        data: data,
-        uuid: data.uuid,
-        socket: data.socket
-      })
-    )
-  })
+function getMessage (data, received){
+  received.json({ data: database.getItem(data.uuid).threadMessage })
 }
-
-//Threadに送信されたデータをばら撒く
-function ThreadToSendMessageRequest(data) {
-  const connectToOneSocketForThreadToMessage = connectToOneSocket(data.serverSocket)
-  //uuidでスレッドのメッセージを取得
-  const MessageData = database.getItem(data.uuid).threadMessage.push(data)
-  //uuidでスレッドに書き込む
-  database.addItem(data.uuid, MessageData)
-  connectToOneSocketForThreadToMessage.on("connection", (connectToOneSocketForThreadToMessaged) => {
-    connectToOneSocketForThreadToMessaged.send(
-      JSON.stringify({
-        type: { NewMessage: true },
-        uuid: data.uuid,
-        socket: data.socket
-      })
-    )
-  })
-}
-
-function NewMessage(data) {
-  // 接続するURLのリスト
-  const urls = database.getItem("serverJoinList");
-
-  // 複数のWebSocketオブジェクトを取得
-  const sockets = connectToMultipleSockets(urls);
-
-  sendMessageToAllSockets(sockets, JSON.stringify(
-    { type: { haveNewMessage: true }, uuid: data.uuid, socket: data.socket }
-  ));
-}
-
-function haveNewMessage(data) {
-  getThread(data)
-}
-
-
-//フレンドの追加を要求
-function addFriend(data) {
-  if (data.temporaryId == temporaryId) {
-    //一人へのソケット接続
-    const connectToOneSocketForFriendRequest = connectToOneSocket(data.socket)
-
-    connectToOneSocketForFriendRequest.on("connection", (connectToOneSocketForFriendRequested) => {
-      connectToOneSocketForFriendRequested.send(
-        JSON.stringify({
-          type: { friendRequest: true },
-          image: database.getItem("myIconImage"),
-          title: database.getItem("username"),
-          socket: database.getItem("mySocket")
-        })
-      )
-    })
-  }
-}
-
-//フレンド申請者に自分の情報を送信
-function friendRequest(data, received) {
-  database.addToList("friendList", { image: data.image, title: data.title, socket: data.socket })//画面レンタリング用
-  database.addItem(data.socket + "Information", { image: data.image, title: data.title, socket: data.socket })//接続用
-  received.send(
-    JSON.stringify({
-      type: { friendRequestReply: true },
-      image: database.getItem("myIconImage"),
-      title: database.getItem("username"),
-      socket: database.getItem("mySocket")
-    })
-  )
-}
-
-//フレンド申請先の情報を取得
-function friendRequestReply(data) {
-  database.addToList("friendList", { image: data.image, title: data.title, socket: data.socket })//画面レンタリング用
-  database.addItem(data.socket + "Information", { image: data.image, title: data.title, socket: data.socket })//接続用
-}
-
-
-//DMを開く
-function openDM(data, received) {
-  received.send(JSON.stringify(database.getItem(data.socket + "MessageList")))
-}
-
-//ダイレクトメッセージを送信
-function sendToFriendDM(data) {
-  //一人へのソケット接続
-  const connectToOneSocketForFriendToMessage = connectToOneSocket(data.socket)
-
-  connectToOneSocketForFriendToMessage.on("connection", (connectToOneSocketForFriendToMessaged) => {
-    connectToOneSocketForFriendToMessaged.send(
-      JSON.stringify({
-        type: { sendToDM: true },
-        title: data.title,
-        message: data.message,
-        socket: database.getItem("mySocket")
-      })
-    )
-  })
-
-  database.addToList(data.socket + "MessageList", { title: data.title, message: data.message })
-}
-
-//受信して、保存する
-function sendToFriendDM(data) {
-  database.addToList(data.socket + "MessageList", { title: data.title, message: data.message })
-}
-
-*/
-
-/*
-//複数へのソケット接続
-const connectToMultipleSockets = (urls) => {
-  const webSocketObjects = [];
-
-  urls.forEach((url) => {
-    const webSocketObject = new WebSocket(url);
-
-    // WebSocket のイベントハンドラを追加して接続状態を監視
-    webSocketObject.addEventListener('open', () => {
-      console.log(`WebSocket connected to ${url}`);
-    });
-
-    webSocketObjects.push(webSocketObject);
-  });
-
-  return webSocketObjects;
-}
-
-// WebSocketオブジェクトたちに対してメッセージを送信する関数
-const sendMessageToAllSockets = (sockets, message) => {
-  sockets.forEach((socket) => {
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(message);
-    } else {
-      console.error(`WebSocket to ${socket.url} is not open.`);
-    }
-  });
-}
-
-//一人へのソケット接続
-const connectToOneSocket = (url) => new WebSocket(url)
-
-//ソケット受信
-const oneSocketReceive = new WebSocket.Server({ port: 8080 })
-
-oneSocketReceive.on("connection", (oneSocketReceived) => {
-  console.log("クライアントが接続しました");
-  temporaryId = uuidv4();
-
-  oneSocketReceived.on("message", (getData) => {
-    
-    const data = JSON.parse(getData)
-    console.log(data)
-    
-    if (data.type.connectTest) {
-      oneSocketReceived.send("success")
-      console.log("success")
-    }//
-
-    else if (data.type.getThread) getThread(data, oneSocketReceived)//
-    
-    else if (data.type.settings) settings(data)//
-    else if (data.type.addFriend) addFriend(data, oneSocketReceived) //ここまで
-    else if (data.type.openDM) openDM(data, oneSocketReceived)//
-    else if (data.type.sendToFriendDM) sendToFriendDM(data)//
-    else if (data.type.sendToDM) sendToDM(data, oneSocketReceived)//
-    else if (data.type.friendRequest) friendRequest(data, oneSocketReceived)//
-    else if (data.type.friendRequestReply) friendRequestReply(data)//
-    else if (data.type.joinRequestToServer) joinRequestToServer(data, oneSocketReceived)//
-    else if (data.type.joinRequestToServerReply) joinRequestToServerReply(data, oneSocketReceived)//
-    else if (data.type.timeLineRequestToFriend) timeLineRequestToFriend(data, oneSocketReceived)
-    else if (data.type.threadPostRequest) threadPostRequest(data, oneSocketReceived)//
-    else if (data.type.getThreadRequest) getThreadRequest(data, oneSocketReceived)//
-    else if (data.type.getThreadRequestReply) getThreadRequest(data, getThreadRequestReply)//
-    else if (data.type.ThreadToSendMessage) getThreadRequest(data, ThreadToSendMessage)//
-    else if (data.type.ThreadToSendMessageRequest) getThreadRequest(data, ThreadToSendMessageRequest)//
-    else if (data.type.NewMessage) getThreadRequest(data, NewMessage)//
-    else if (data.type.haveNewMessage) getThreadRequest(data, haveNewMessage)//
-    else if (data.type.renderingEngine) renderingEngine(oneSocketReceived)//
-  });
-
-  oneSocketReceived.on("close", () => {
-    console.log("クライアントの接続がクローズされました");
-  });
-});
-*/
