@@ -20,8 +20,10 @@ app.use(bodyParser.json());
 
 app.post('/', (req, res) => {
   const data = req.body;
-  
-  if (data.type.createAccount) createAccount(data, res)
+  console.log(data)
+
+  if (data.type.connectTest) res.json("success")
+  else if (data.type.createAccount) createAccount(data, res)
   else if (data.type.login) login(data, res)
   else if (data.type.renderingEngine) renderingEngine(res)
   
