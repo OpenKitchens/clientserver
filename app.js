@@ -195,9 +195,9 @@ function threadPost(data, received) {
 
   database.addItem(uuid, {
     threadInfo: {
-      title: data.title,
+      title: data.title.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1">$1</a>'),
       headerImage: data.headerImage,
-      message: data.message,
+      message: data.message.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1">$1</a>'),
       uuid: uuid,
       myName: database.getItem("username"),
       myIcon: database.getItem("myIconImage"),
@@ -268,7 +268,7 @@ function getThread (data, received){
 
 function postMessage (data, received){
   console.log(data.uuid)
-  database.addItemToList(data.uuid, "threadMessage", JSON.stringify({ message: data.message, icon: data.icon, name: data.name }));
+  database.addItemToList(data.uuid, "threadMessage", JSON.stringify({ message: data.message.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1">$1</a>'), icon: data.icon, name: data.name }));
   received.json({ data: database.getItem(data.uuid).threadMessage })
 }
 
