@@ -139,7 +139,7 @@ function getTimeLine() {
 function addServer(data) {
   console.log("addServerリクエスト(確認前)")
   if (data.temporaryId == database.getItem("token")) {
-
+    console.log("tokenあり(確認後)")
     fetch(data.socket, {
       method: 'POST',
       headers: {
